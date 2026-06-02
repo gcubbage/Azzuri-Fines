@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, Users, X } from "lucide-react";
 import {
   supabase,
   type Player,
@@ -111,42 +112,52 @@ export default function AssignPage() {
   };
 
   if (loading) {
-    return <p className="py-10 text-center text-slate-500">Loading…</p>;
+    return (
+      <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
+        <Loader2 className="animate-spin" size={20} />
+        <span>Loading…</span>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
       {/* Round input */}
-      <div className="sticky top-[52px] z-20 -mx-4 bg-slate-100 px-4 pb-2 pt-1">
-        <label className="mb-1 block text-sm font-medium text-slate-600">
+      <div className="sticky top-[57px] z-20 -mx-4 bg-[#f4f8fc]/90 px-4 pb-3 pt-1 backdrop-blur-sm">
+        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
           Round
         </label>
         <input
           value={round}
           onChange={(e) => setRound(e.target.value)}
           placeholder="e.g. Round 3"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 outline-none focus:border-brand"
+          className="input"
         />
       </div>
 
       {message && (
-        <div className="rounded-lg bg-green-100 px-3 py-2 text-sm text-green-800">
+        <div className="animate-slide-up rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm font-medium text-brand-700">
           {message}
         </div>
       )}
       {error && (
-        <div className="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-800">
+        <div className="animate-slide-up rounded-xl bg-red-50 px-3.5 py-2.5 text-sm font-medium text-red-700">
           {error}
         </div>
       )}
 
       {players.length === 0 && (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
-          No players yet. Add some on the{" "}
-          <a href="/players" className="font-semibold text-brand">
-            Players
-          </a>{" "}
-          page.
+        <div className="card flex flex-col items-center gap-2 py-10 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+            <Users size={22} />
+          </span>
+          <p className="text-sm text-slate-500">
+            No players yet. Add some on the{" "}
+            <a href="/players" className="font-semibold text-brand-700">
+              Players
+            </a>{" "}
+            page.
+          </p>
         </div>
       )}
 
@@ -171,42 +182,41 @@ export default function AssignPage() {
           }
 
           return (
-            <li
-              key={p.id}
-              className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold">{p.name}</p>
-                  {subtotal > 0 && (
-                    <p className="text-sm text-slate-500">
+            <li key={p.id} className="card !p-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-ink">{p.name}</p>
+                  {subtotal > 0 ? (
+                    <p className="text-sm font-medium text-brand-700">
                       {entries.length} fine{entries.length === 1 ? "" : "s"} ·{" "}
                       {formatCurrency(subtotal)}
                     </p>
+                  ) : (
+                    <p className="text-sm text-slate-400">No fines yet</p>
                   )}
                 </div>
                 <button
                   onClick={() => setOpenPlayerId(p.id)}
-                  className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white active:bg-brand-dark"
+                  className="btn btn-primary shrink-0 px-3.5 py-2 text-sm"
                 >
-                  + Fine
+                  <Plus size={16} /> Fine
                 </button>
               </div>
 
               {grouped.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2.5 flex flex-wrap gap-2">
                   {grouped.map((g) => (
                     <button
                       key={g.fineTypeId}
                       onClick={() => removeFine(p.id, g.fineTypeId)}
-                      className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-brand active:bg-blue-100"
+                      className="chip"
                       title="Tap to remove one"
                     >
                       {g.name}
                       {g.count > 1 && (
                         <span className="font-bold">×{g.count}</span>
                       )}
-                      <span className="text-slate-400">✕</span>
+                      <X size={12} className="text-brand-600" />
                     </button>
                   ))}
                 </div>
@@ -228,14 +238,15 @@ export default function AssignPage() {
 
       {/* Sticky save bar */}
       {totals.count > 0 && (
-        <div className="fixed bottom-[60px] inset-x-0 z-30 px-4">
+        <div className="fixed bottom-[72px] inset-x-0 z-30 px-4">
           <div className="mx-auto max-w-lg">
             <button
               onClick={save}
               disabled={saving}
-              className="flex w-full items-center justify-between rounded-xl bg-brand px-4 py-3 font-semibold text-white shadow-lg active:bg-brand-dark disabled:opacity-60"
+              className="btn btn-primary flex w-full items-center justify-between px-4 py-3.5 text-base shadow-float"
             >
-              <span>
+              <span className="flex items-center gap-2">
+                {saving && <Loader2 className="animate-spin" size={18} />}
                 {saving ? "Saving…" : "Save round"}
               </span>
               <span className="tabular-nums">

@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  BadgeCheck,
+  ChevronDown,
+  Download,
+  Loader2,
+  Wallet,
+} from "lucide-react";
+import {
   supabase,
   type Player,
   type Fine,
@@ -142,51 +149,60 @@ export default function SummaryPage() {
   };
 
   if (loading) {
-    return <p className="py-10 text-center text-slate-500">Loading…</p>;
+    return (
+      <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
+        <Loader2 className="animate-spin" size={20} />
+        <span>Loading…</span>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
       {/* Header totals + export */}
-      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <p className="text-xs text-slate-400">Owed</p>
-              <p className="font-semibold">
-                {formatCurrency(grandTotals.owed)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Paid</p>
-              <p className="font-semibold text-green-600">
-                {formatCurrency(grandTotals.paid)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Owing</p>
-              <p className="font-semibold text-red-600">
-                {formatCurrency(grandTotals.remaining)}
-              </p>
-            </div>
+      <div className="card !p-0 overflow-hidden">
+        <div className="grid grid-cols-3 divide-x divide-slate-100">
+          <div className="px-3 py-3.5 text-center">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              Owed
+            </p>
+            <p className="mt-0.5 font-bold text-ink">
+              {formatCurrency(grandTotals.owed)}
+            </p>
+          </div>
+          <div className="px-3 py-3.5 text-center">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              Paid
+            </p>
+            <p className="mt-0.5 font-bold text-emerald-600">
+              {formatCurrency(grandTotals.paid)}
+            </p>
+          </div>
+          <div className="px-3 py-3.5 text-center">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              Owing
+            </p>
+            <p className="mt-0.5 font-bold text-red-500">
+              {formatCurrency(grandTotals.remaining)}
+            </p>
           </div>
         </div>
         <button
           onClick={exportCsv}
-          className="mt-3 w-full rounded-lg bg-slate-800 py-2 text-sm font-semibold text-white active:bg-slate-700"
+          className="btn btn-secondary w-full rounded-none py-3 text-sm"
         >
-          ⬇ Export CSV
+          <Download size={16} /> Export CSV
         </button>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-800">
+        <div className="animate-slide-up rounded-xl bg-red-50 px-3.5 py-2.5 text-sm font-medium text-red-700">
           {error}
         </div>
       )}
 
       {players.length === 0 && (
-        <p className="py-6 text-center text-sm text-slate-500">
+        <p className="py-10 text-center text-sm text-slate-400">
           No players yet.
         </p>
       )}
@@ -197,8 +213,10 @@ export default function SummaryPage() {
           const owed = owedFor(p.id);
           const paid = paidFor(p.id);
           const remaining = owed - paid;
+          const pct = owed > 0 ? Math.min(100, (paid / owed) * 100) : 0;
           const pf = finesByPlayer[p.id] ?? [];
           const isOpen = expanded[p.id];
+          const paidUp = remaining <= 0 && owed > 0;
 
           // Group this player's fines by round (preserve insertion order).
           const rounds: { round: string; items: Fine[] }[] = [];
@@ -212,47 +230,60 @@ export default function SummaryPage() {
           }
 
           return (
-            <li
-              key={p.id}
-              className="rounded-xl border border-slate-200 bg-white shadow-sm"
-            >
+            <li key={p.id} className="card !p-0 overflow-hidden">
               <button
                 onClick={() =>
                   setExpanded((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
                 }
-                className="flex w-full items-center justify-between p-3 text-left"
+                className="flex w-full items-center justify-between gap-3 p-3.5 text-left"
               >
-                <div>
-                  <p className="font-semibold">{p.name}</p>
-                  <p className="text-xs text-slate-500">
-                    Owed {formatCurrency(owed)} · Paid{" "}
-                    {formatCurrency(paid)}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-semibold text-ink">{p.name}</p>
+                    {paidUp && (
+                      <BadgeCheck size={16} className="shrink-0 text-emerald-500" />
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Owed {formatCurrency(owed)} · Paid {formatCurrency(paid)}
                   </p>
+                  {/* Progress bar */}
+                  {owed > 0 && (
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={`h-full rounded-full ${
+                          paidUp ? "bg-emerald-500" : "bg-brand-500"
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <span
-                    className={`rounded-full px-2.5 py-1 text-sm font-semibold ${
+                    className={`badge ${
                       remaining <= 0
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-red-50 text-red-600"
                     }`}
                   >
                     {remaining <= 0
                       ? "Paid up"
-                      : `${formatCurrency(remaining)} owing`}
+                      : `${formatCurrency(remaining)}`}
                   </span>
-                  <span className="text-slate-400">
-                    {isOpen ? "▲" : "▼"}
-                  </span>
+                  <ChevronDown
+                    size={18}
+                    className={`text-slate-400 transition-transform ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </div>
               </button>
 
               {isOpen && (
-                <div className="border-t border-slate-100 px-3 pb-3 pt-2">
+                <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-3">
                   {rounds.length === 0 && (
-                    <p className="py-2 text-sm text-slate-400">
-                      No fines yet.
-                    </p>
+                    <p className="py-2 text-sm text-slate-400">No fines yet.</p>
                   )}
                   {rounds.map((r) => {
                     const roundTotal = r.items.reduce(
@@ -262,10 +293,10 @@ export default function SummaryPage() {
                     return (
                       <div key={r.round} className="mb-3 last:mb-0">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-slate-700">
+                          <p className="text-sm font-semibold text-ink">
                             {r.round}
                           </p>
-                          <p className="text-sm text-slate-500">
+                          <p className="text-sm font-medium text-slate-500">
                             {formatCurrency(roundTotal)}
                           </p>
                         </div>
@@ -280,14 +311,14 @@ export default function SummaryPage() {
                                 className="flex items-center justify-between py-1.5"
                               >
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm">
+                                  <p className="truncate text-sm text-slate-700">
                                     {ft?.name ?? "(deleted fine)"}
                                   </p>
                                   <p className="text-xs text-slate-400">
                                     {formatDate(f.created_at)}
                                   </p>
                                 </div>
-                                <span className="text-sm tabular-nums">
+                                <span className="text-sm font-medium tabular-nums text-slate-700">
                                   {formatCurrency(Number(f.amount))}
                                 </span>
                               </li>
@@ -300,15 +331,15 @@ export default function SummaryPage() {
 
                   {/* Payments list */}
                   {(paymentsByPlayer[p.id]?.length ?? 0) > 0 && (
-                    <div className="mt-2 rounded-lg bg-green-50 p-2">
-                      <p className="text-xs font-semibold text-green-700">
-                        Payments
+                    <div className="mt-2 rounded-xl bg-emerald-50 p-2.5">
+                      <p className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                        <Wallet size={13} /> Payments
                       </p>
                       <ul className="mt-1 space-y-0.5">
                         {(paymentsByPlayer[p.id] ?? []).map((pay) => (
                           <li
                             key={pay.id}
-                            className="flex items-center justify-between text-xs text-green-800"
+                            className="flex items-center justify-between text-xs text-emerald-800"
                           >
                             <span>
                               {formatDateTime(pay.created_at)}
@@ -325,7 +356,7 @@ export default function SummaryPage() {
 
                   {/* Record payment */}
                   {payOpen === p.id ? (
-                    <div className="mt-3 space-y-2 rounded-lg border border-slate-200 p-2">
+                    <div className="mt-3 space-y-2 rounded-xl border border-slate-200 p-2.5">
                       <div className="flex gap-2">
                         <input
                           type="number"
@@ -333,13 +364,13 @@ export default function SummaryPage() {
                           value={payAmount}
                           onChange={(e) => setPayAmount(e.target.value)}
                           placeholder="Amount"
-                          className="w-28 rounded-lg border border-slate-300 px-2 py-1.5 outline-none focus:border-brand"
+                          className="input w-28 !py-2"
                         />
                         <input
                           value={payNote}
                           onChange={(e) => setPayNote(e.target.value)}
                           placeholder="Note (optional)"
-                          className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5 outline-none focus:border-brand"
+                          className="input flex-1 !py-2"
                         />
                       </div>
                       <div className="flex gap-2">
@@ -347,14 +378,14 @@ export default function SummaryPage() {
                           onClick={() =>
                             recordPayment(p.id, parseFloat(payAmount))
                           }
-                          className="flex-1 rounded-lg bg-brand py-2 text-sm font-semibold text-white"
+                          className="btn btn-primary flex-1 py-2 text-sm"
                         >
                           Save payment
                         </button>
                         {remaining > 0 && (
                           <button
                             onClick={() => recordPayment(p.id, remaining)}
-                            className="flex-1 rounded-lg bg-green-600 py-2 text-sm font-semibold text-white"
+                            className="btn flex-1 bg-emerald-600 py-2 text-sm text-white hover:bg-emerald-700"
                           >
                             Pay full ({formatCurrency(remaining)})
                           </button>
@@ -365,7 +396,7 @@ export default function SummaryPage() {
                             setPayAmount("");
                             setPayNote("");
                           }}
-                          className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600"
+                          className="btn btn-ghost px-3 py-2 text-sm"
                         >
                           Cancel
                         </button>
@@ -377,9 +408,9 @@ export default function SummaryPage() {
                         setPayOpen(p.id);
                         setError(null);
                       }}
-                      className="mt-3 w-full rounded-lg border border-brand py-2 text-sm font-semibold text-brand active:bg-blue-50"
+                      className="btn btn-secondary mt-3 w-full py-2.5 text-sm"
                     >
-                      Record payment
+                      <Wallet size={16} /> Record payment
                     </button>
                   )}
                 </div>
