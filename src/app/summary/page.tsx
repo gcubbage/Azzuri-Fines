@@ -164,7 +164,7 @@ export default function SummaryPage() {
         <div className="grid grid-cols-3 divide-x divide-slate-100">
           <div className="px-3 py-3.5 text-center">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Owed
+              Fines
             </p>
             <p className="mt-0.5 font-bold text-ink">
               {formatCurrency(grandTotals.owed)}
@@ -245,7 +245,7 @@ export default function SummaryPage() {
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Owed {formatCurrency(owed)} · Paid {formatCurrency(paid)}
+                    Fines {formatCurrency(owed)} · Paid {formatCurrency(paid)}
                   </p>
                   {/* Progress bar */}
                   {owed > 0 && (
