@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Users, X } from "lucide-react";
+import { Check, Loader2, Plus, Users, X } from "lucide-react";
 import {
   supabase,
   type Player,
@@ -13,11 +13,16 @@ import FinePickerSheet from "@/components/FinePickerSheet";
 type DraftEntry = { fineTypeId: string; name: string; amount: number };
 type Draft = Record<string, DraftEntry[]>; // playerId -> entries
 
+// Persist the in-progress round + fines so they survive reloads / closing the
+// browser on this device. Cleared once the round is saved.
+const DRAFT_KEY = "azzuri-fines-draft-v1";
+
 export default function AssignPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [fineTypes, setFineTypes] = useState<FineType[]>([]);
   const [round, setRound] = useState("");
   const [draft, setDraft] = useState<Draft>({});
+  const [hydrated, setHydrated] = useState(false);
   const [openPlayerId, setOpenPlayerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,6 +43,53 @@ export default function AssignPage() {
       setLoading(false);
     })();
   }, []);
+
+  // Hydrate the draft from localStorage once, on mount (client only).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as { round?: string; draft?: Draft };
+        if (typeof saved.round === "string") setRound(saved.round);
+        if (saved.draft && typeof saved.draft === "object")
+          setDraft(saved.draft);
+      }
+    } catch {
+      // Ignore corrupt/unavailable storage and start fresh.
+    }
+    setHydrated(true);
+  }, []);
+
+  // Persist the draft whenever it changes (after the initial hydrate, so we
+  // don't clobber stored data with the empty initial state).
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      if (round.trim() === "" && Object.keys(draft).length === 0) {
+        localStorage.removeItem(DRAFT_KEY);
+      } else {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ round, draft }));
+      }
+    } catch {
+      // Storage may be full or blocked; non-fatal.
+    }
+  }, [hydrated, round, draft]);
+
+  // Once players are loaded, drop any draft entries for players that no longer
+  // exist (e.g. removed mid-draft) so we never try to save an orphaned fine.
+  useEffect(() => {
+    if (loading || !hydrated) return;
+    const ids = new Set(players.map((p) => p.id));
+    setDraft((prev) => {
+      const next: Draft = {};
+      let changed = false;
+      for (const [pid, entries] of Object.entries(prev)) {
+        if (ids.has(pid)) next[pid] = entries;
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [loading, hydrated, players]);
 
   const addFine = (playerId: string, ft: FineType) => {
     setDraft((prev) => {
@@ -105,10 +157,22 @@ export default function AssignPage() {
       setError(insertError.message);
       return;
     }
-    setDraft({});
     setMessage(
       `Saved ${rows.length} fine${rows.length === 1 ? "" : "s"} for ${round.trim()}.`
     );
+    // Round complete — reset the draft (also clears it from storage).
+    setDraft({});
+    setRound("");
+    setOpenPlayerId(null);
+  };
+
+  const clearDraft = () => {
+    if (totals.count === 0) return;
+    if (!window.confirm("Discard all unsaved fines in this draft?")) return;
+    setDraft({});
+    setRound("");
+    setMessage(null);
+    setError(null);
   };
 
   if (loading) {
@@ -124,9 +188,22 @@ export default function AssignPage() {
     <div className="space-y-4">
       {/* Round input */}
       <div className="sticky top-[57px] z-20 -mx-4 bg-[#f4f8fc]/90 px-4 pb-3 pt-1 backdrop-blur-sm">
-        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-          Round
-        </label>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label className="text-sm font-semibold text-slate-700">Round</label>
+          {totals.count > 0 && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="flex items-center gap-1 font-medium text-emerald-600">
+                <Check size={13} /> Draft auto-saved
+              </span>
+              <button
+                onClick={clearDraft}
+                className="font-semibold text-slate-400 underline-offset-2 hover:text-red-500 hover:underline"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
         <input
           value={round}
           onChange={(e) => setRound(e.target.value)}
